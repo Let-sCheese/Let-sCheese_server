@@ -15,11 +15,9 @@ app = FastAPI()
 
 
 @app.post("/uploadfile/")
-async def create_upload_file(file: UploadFile = File(...)):
-    img = Image.open(file.file) 
+def create_upload_file(file: UploadFile = File(...)):
+    img = Image.open(file.file)
     img = np.array(img)
- 
-    
     # Convert the image to black and white
     if len(img.shape) == 2:
         # Grayscale image has only one channel
@@ -28,7 +26,8 @@ async def create_upload_file(file: UploadFile = File(...)):
         # Color image has three channels
         image_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
  
-    face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+    # face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
     # Detect faces
     faces = face_cascade.detectMultiScale(img)
