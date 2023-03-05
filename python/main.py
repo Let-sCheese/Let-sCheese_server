@@ -1,6 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import HTMLResponse
-from GDSC import predict_image_classification_sample as predict
+from google_module import predict_image_classification_sample as predict
 from PIL import Image
 import io
 import cv2
