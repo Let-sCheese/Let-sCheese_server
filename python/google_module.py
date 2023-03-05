@@ -3,7 +3,7 @@ from google.cloud import aiplatform
 from google.cloud.aiplatform.gapic.schema import predict
 from google.cloud import storage
 from google.protobuf.json_format import MessageToDict
-from GDSC_constants import ENDPOINTID,PROJECT,PROJECTID
+from constants import ENDPOINTID,PROJECT,PROJECTID
 
 def authenticate_implicit_with_adc(project_id=PROJECTID):
     """
