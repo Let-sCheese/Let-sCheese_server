@@ -9,6 +9,7 @@ import numpy as np
 import logging
 from pydantic import BaseModel
 from typing import Union
+from customized_exception import LowEmotionError,NoFaceException
 
 app = FastAPI()
 # 꼭 GDSC_Solution_Challenge 폴더로 이동하고, 
@@ -23,19 +24,22 @@ class Classfication(BaseModel):
     is_higher_than_half: Union[bool, None] = None
 
 
+
+
+
 @app.post("/uploadfile/",
         description="얼굴 감정 인식 API입니다.",response_model=Classfication) 
 def create_upload_file(file: UploadFile = File(...)):
     try:
         binary_pil=find_face(file)
         if binary_pil is None:
-            raise TypeError
+            raise NoFaceException
         else:
             predict_result=predict(file=binary_pil)
             return Classfication(emotion=predict_result[0],confidence=predict_result[1],is_higher_than_half=(lambda x:True if x>=0.5 else False)(predict_result[1]))
-    except TypeError as type:
-        logging.warning(type)
-        return JSONResponse(status_code=status.HTTP_406_NOT_ACCEPTABLE,content={"emotion": None, "confidence":None, "is_higher_than_half": None})
+    except (LowEmotionError, NoFaceException) as e:
+        logging.warning(e)
+        return JSONResponse(status_code=status.HTTP_406_NOT_ACCEPTABLE,content={"emotion": str(e), "confidence":None, "is_higher_than_half": None})
     except Exception as e:
         logging.warning(e)
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,content=str(e))

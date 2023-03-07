@@ -5,6 +5,9 @@ from google.cloud import storage
 from google.protobuf.json_format import MessageToDict
 from constants import ENDPOINTID,PROJECT,PROJECTID
 import logging
+from customized_exception import LowEmotionError,NoFaceException
+
+
 def authenticate_implicit_with_adc(project_id=PROJECTID):
     """
     When interacting with Google Cloud Client libraries, the library can auto-detect the
@@ -26,10 +29,14 @@ def authenticate_implicit_with_adc(project_id=PROJECTID):
     # Hence, the client library will look for credentials using ADC.
     storage_client = storage.Client(project=project_id)
     buckets = storage_client.list_buckets()
-    print("Buckets:")
-    for bucket in buckets:
-        print(bucket.name)
-    print("Listed all storage buckets.")
+    '''
+        출력문:
+            print("Buckets:")
+            for bucket in buckets:
+                print(bucket.name)
+            print("Listed all storage buckets.")
+    '''
+
 
 
 def predict_image_classification_sample(
@@ -80,6 +87,8 @@ def predict_image_classification_sample(
             이 부분 예외처리 하기
     '''
     response_json=[(name,conf) for name,conf in zip(response_json["displayNames"],response_json["confidences"])]
+    if not response_json:
+        raise LowEmotionError
     response_json.sort(key=lambda x:x[1],reverse=True)
     response_json=response_json[0]
     #print(response_json)
