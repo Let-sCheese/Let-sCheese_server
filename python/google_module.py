@@ -4,7 +4,7 @@ from google.cloud.aiplatform.gapic.schema import predict
 from google.cloud import storage
 from google.protobuf.json_format import MessageToDict
 from constants import ENDPOINTID,PROJECT,PROJECTID
-
+import logging
 def authenticate_implicit_with_adc(project_id=PROJECTID):
     """
     When interacting with Google Cloud Client libraries, the library can auto-detect the
@@ -45,18 +45,22 @@ def predict_image_classification_sample(
     # This client only needs to be created once, and can be reused for multiple requests.
     client = aiplatform.gapic.PredictionServiceClient(client_options=client_options)
     
-    # with open(filename, "rb") as f:
+    # with open(file, "rb") as f:
     #     file_content = f.read()
 
     # The format of each instance should conform to the deployed model's prediction input schema.
-    encoded_content = base64.b64encode(file).decode("utf-8")
+    
+    #encoded_content = base64.b64encode(file).decode("utf-8")
+    encoded_content = base64.b64encode(file)
+
+
     instance = predict.instance.ImageClassificationPredictionInstance(
         content=encoded_content,
     ).to_value()
     instances = [instance]
     # See gs://google-cloud-aiplatform/schema/predict/params/image_classification_1.0.0.yaml for the format of the parameters.
     parameters = predict.params.ImageClassificationPredictionParams(
-        confidence_threshold=0.2, max_predictions=5,
+        confidence_threshold=0.4, max_predictions=5,
     ).to_value()
     endpoint = client.endpoint_path(
         project=project, location=location, endpoint=endpoint_id
@@ -69,9 +73,17 @@ def predict_image_classification_sample(
     # See gs://google-cloud-aiplatform/schema/predict/prediction/image_classification_1.0.0.yaml for the format of the predictions.
     predictions = response.predictions
     response_json=dict(*predictions)
+
+    '''
+        To-do:
+
+            이 부분 예외처리 하기
+    '''
     response_json=[(name,conf) for name,conf in zip(response_json["displayNames"],response_json["confidences"])]
     response_json.sort(key=lambda x:x[1],reverse=True)
+    response_json=response_json[0]
     #print(response_json)
+    logging.info(response_json)
     return response_json
 
     # for prediction in predictions:
@@ -80,4 +92,4 @@ def predict_image_classification_sample(
 
 #authenticate_implicit_with_adc()
 
-#predict_image_classification_sample(filename="C:/Users/rover0811/Pictures/363882244.jpg")
+#predict_image_classification_sample(file="C:/Users/rover0811/Pictures/363882244.jpg")

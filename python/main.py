@@ -1,10 +1,14 @@
-from fastapi import FastAPI, File, UploadFile, Form
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, File, UploadFile,status
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from google_module import predict_image_classification_sample as predict
 from PIL import Image
 import io
 import cv2
 import numpy as np
+import logging
+from pydantic import BaseModel
+from typing import Union
 
 app = FastAPI()
 # 꼭 GDSC_Solution_Challenge 폴더로 이동하고, 
@@ -13,9 +17,47 @@ app = FastAPI()
 
 # gray -> detect -> reduce the size
 
+class Classfication(BaseModel):
+    emotion: Union[str,None]= None
+    confidence: Union[float,None] = None
+    is_higher_than_half: Union[bool, None] = None
 
-@app.post("/uploadfile/")
+
+@app.post("/uploadfile/",
+        description="얼굴 감정 인식 API입니다.",response_model=Classfication) 
 def create_upload_file(file: UploadFile = File(...)):
+    try:
+        binary_pil=find_face(file)
+        if binary_pil is None:
+            raise TypeError
+        else:
+            predict_result=predict(file=binary_pil)
+            return Classfication(emotion=predict_result[0],confidence=predict_result[1],is_higher_than_half=(lambda x:True if x>=0.5 else False)(predict_result[1]))
+    except TypeError as type:
+        logging.warning(type)
+        return JSONResponse(status_code=status.HTTP_406_NOT_ACCEPTABLE,content={"emotion": None, "confidence":None, "is_higher_than_half": None})
+    except Exception as e:
+        logging.warning(e)
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,content=str(e))
+    except:
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,content="INTERNAL_SERVER_ERROR")
+
+    
+    
+
+def biggest_face_image(image, faces):
+    if len(faces) == 0:
+        return None  # or any other handling of this case
+    areas = []
+    for (x, y, w, h) in faces:
+        area = w * h
+        areas.append(area)
+    max_area_index = np.argmax(areas)
+    x, y, w, h = faces[max_area_index]
+    biggest_face = image[y:y+h, x:x+w]
+    return biggest_face
+
+def find_face(file: UploadFile = File(...)):
     img = Image.open(file.file)
     img = np.array(img)
     # Convert the image to black and white
@@ -25,17 +67,16 @@ def create_upload_file(file: UploadFile = File(...)):
     elif len(img.shape) == 3:
         # Color image has three channels
         image_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
- 
     # face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-
     # Detect faces
     faces = face_cascade.detectMultiScale(img)
     
     # Detect the biggest_face among the faces detected in the image
     biggest_face = biggest_face_image(img, faces)
-
-    
+    #logging.info(type(biggest_face))
+    if biggest_face is None:
+        return None
     # Convert the image to a byte buffer
     retval, buffer = cv2.imencode('.png', biggest_face)
     binary_cv2 = buffer.tobytes()
@@ -44,18 +85,4 @@ def create_upload_file(file: UploadFile = File(...)):
     output = io.BytesIO()
     img.save(output, format='PNG')
     binary_pil = output.getvalue()
-
-    return predict(file=binary_pil)
-
-
-def biggest_face_image(image, faces):
-    if len(faces) == 0:
-        return None # or any other handling of this case
-    areas = []
-    for (x, y, w, h) in faces:
-        area = w * h
-        areas.append(area)
-    max_area_index = np.argmax(areas)
-    x, y, w, h = faces[max_area_index]
-    biggest_face = image[y:y+h, x:x+w]
-    return biggest_face
+    return binary_pil
